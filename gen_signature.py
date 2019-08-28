@@ -7,8 +7,31 @@ import sys
 import json
 
 
+def get_dict_elements(key, value):
+    items = value.items()
+    result_elements = []
+    for item in items:
+        k, v = item
+        if type(v) is dict:
+            elements = get_dict_elements('__'.join([key, k]), v)
+            result_elements += elements
+        else:
+            result_elements += [('__'.join([key, k]), str(v))]
+    return result_elements
+
+
 def generate_signature(data, merchant_api_key=None):
-    od = collections.OrderedDict(sorted(data.items()))
+    if 'extra_data' in data.keys() and data.get('extra_data') is None:
+        data.pop('extra_data')
+    signature_items = []
+    for item in data.items():
+        k, v = item
+        if type(v) is dict:
+            elements = get_dict_elements(k, v)
+            signature_items += elements
+        else:
+            signature_items += [(k, str(v))]
+    od = collections.OrderedDict(sorted(signature_items))
     try:
         pop_signature = od.pop('signature')
     except KeyError:
@@ -20,7 +43,6 @@ def generate_signature(data, merchant_api_key=None):
     hmac_data = hmac.new(api_key_binary, qs_binary, hashlib.sha512).digest()
     signature_binary = base64.b64encode(hmac_data)
     signature = signature_binary.decode("ascii")
-    print("QueryString is: {}".format(qs))
     return signature
 
 
